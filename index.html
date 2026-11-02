@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>note</title>
+<meta name="description" content="Ghi chú trực tuyến: link và code tự nhận diện, chia sẻ bằng đường dẫn riêng.">
+<script>try{var t=localStorage.getItem('th')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body data-v="note">
+<video id="bgv" class="bgv" muted loop playsinline preload="none" aria-hidden="true"></video>
+
+<div class="wrap">
+  <header class="bar glass">
+    <a class="logo" href="#/">note<span>.</span></a>
+    <nav class="acts" aria-label="Chức năng">
+      <a class="btn" href="#/">Mở note mới</a>
+      <button class="btn" id="bLock" type="button">Mở khoá</button>
+      <button class="btn" id="bGo" type="button">Đổi note</button>
+      <button class="btn" id="bTheme" type="button">Chế độ tối</button>
+    </nav>
+  </header>
+
+  <div class="tabs glass" role="tablist" aria-label="Chế độ xem">
+    <a data-v="note" role="tab">Gốc</a>
+    <a data-v="share" role="tab">Chia sẻ</a>
+    <a data-v="raw" role="tab">Raw</a>
+  </div>
+
+  <main class="card glass">
+    <textarea id="ed" placeholder="Viết ghi chú, dán link hoặc code vào đây…" spellcheck="false" aria-label="Nội dung note" hidden></textarea>
+    <div id="view" class="view" hidden></div>
+    <div id="rawBox" class="rawbox" hidden>
+      <button class="btn" id="bCopyRaw" type="button">Chép raw</button>
+      <pre id="raw"></pre>
+    </div>
+  </main>
+
+  <section id="share" class="share glass" hidden>
+    <h2>Chạm để chép liên kết chia sẻ</h2>
+    <button class="surl" id="surl" type="button"></button>
+    <div class="soc">
+      <a class="btn" id="sFb" target="_blank" rel="noopener noreferrer">Facebook</a>
+      <a class="btn" id="sX" target="_blank" rel="noopener noreferrer">X</a>
+      <a class="btn" id="sRd" target="_blank" rel="noopener noreferrer">Reddit</a>
+      <a class="btn" id="sRaw">Mở raw</a>
+    </div>
+  </section>
+
+  <div id="tools" class="tools glass" hidden>
+    <button class="btn" type="button" data-lang="text" aria-pressed="true">Văn bản</button>
+    <button class="btn" type="button" data-lang="auto" aria-pressed="false">Code (tự nhận)</button>
+    <button class="btn warn grow" id="bDel" type="button">Xoá</button>
+    <button class="btn pri" id="bSave" type="button">Lưu</button>
+  </div>
+
+  <div class="meta"><span>Từ: <b id="cnt">0</b></span><span id="lim"></span></div>
+</div>
+
+<dialog id="dlg" class="sheet glass">
+  <form id="fPw" method="dialog">
+    <h3>Mở khoá để chỉnh sửa</h3>
+    <p>Mật khẩu chỉ dùng để sửa văn bản. Xem và chia sẻ không cần mật khẩu.</p>
+    <input id="pw" type="password" autocomplete="off" placeholder="Mật khẩu" aria-label="Mật khẩu">
+    <div id="perr" class="perr" role="alert"></div>
+    <div class="row">
+      <button class="btn" type="button" id="pCancel">Huỷ</button>
+      <button class="btn pri" type="submit">Mở khoá</button>
+    </div>
+  </form>
+</dialog>
+<div id="toast" class="toast glass" role="status"></div>
+
+<script>
+(()=>{
+const DB='https://dichai-c1645-default-rtdb.firebaseio.com/tr/',MAX=1200,
+  GATE='adfadf17e272270734963caf643918627185e0baf85d66915032566d52932921', // sha256("gate:"+mật khẩu)
+  VIDEO='https://github.com/nhicode/note/raw/refs/heads/main/ScreenRecording_11-02-2026_21-46-01_1.mp4',
+  RM=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const $=s=>document.querySelector(s);
+const mk=st=>({get:k=>{try{return st.getItem(k)}catch(e){return null}},set:(k,v)=>{try{st.setItem(k,v)}catch(e){}}});
+const ls=mk(localStorage),ss=mk(sessionStorage);
+const ed=$('#ed'),view=$('#view'),raw=$('#raw'),rawBox=$('#rawBox'),share=$('#share'),tools=$('#tools'),vid=$('#bgv'),dlg=$('#dlg');
+const S={v:'note',id:null,text:'',lang:'text',miss:false,err:false,loading:false,pw:ss.get('pw')||null};
+
+/* ---------- tiện ích ---------- */
+const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rid=()=>[...crypto.getRandomValues(new Uint8Array(8))].map(b=>'abcdefghijklmnopqrstuvwxyz0123456789'[b%36]).join('');
+let tt;const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2600)};
+const copy=async s=>{try{await navigator.clipboard.writeText(s);toast('Đã chép')}catch(e){toast('Trình duyệt chặn chép, hãy chép tay')}};
+const shareUrl=()=>location.href.split('#')[0]+'#/share/'+S.id;
+
+/* ---------- tự nhận diện link + code ---------- */
+const URLRE=/\bhttps?:\/\/[^\s<>"')\]]+|\bwww\.[^\s<>"')\]]+/gi; // chỉ http(s): không có javascript:
+function linkify(t){
+  let o='',i=0;
+  t.replace(URLRE,(u,off)=>{
+    o+=esc(t.slice(i,off));
+    const h=u.replace(/[.,;:!?]+$/,''),tail=u.slice(h.length),href=/^www\./i.test(h)?'https://'+h:h;
+    o+=`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(h)}</a>`+esc(tail);
+    i=off+u.length;return u;
+  });
+  return o+esc(t.slice(i));
+}
+function linkNodes(root){ // biến URL trong comment/chuỗi của code thành link bấm được
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),a=[];
+  for(let n;n=w.nextNode();)if(/https?:\/\/|www\./i.test(n.data))a.push(n);
+  a.forEach(n=>{const s=document.createElement('span');s.innerHTML=linkify(n.data);n.replaceWith(...s.childNodes)});
+}
+function code(src,l){
+  let r;
+  try{r=l&&hljs.getLanguage(l)?hljs.highlight(src,{language:l}):hljs.highlightAuto(src)}catch(e){return `<pre class="code"><code>${esc(src)}</code></pre>`}
+  return `<pre class="code"><code class="hljs">${r.value}</code></pre>`;
+}
+function fmt(t,lang){
+  if(lang==='auto')return code(t);
+  let o='',i=0;
+  t.replace(/```([\w+#.-]*)[ \t]*\n?([\s\S]*?)```/g,(m,l,c,off)=>{
+    o+=linkify(t.slice(i,off))+code(c.replace(/\n$/,''),l.toLowerCase());i=off+m.length;return m;
+  });
+  return o+linkify(t.slice(i));
+}
+
+/* ---------- Firebase (REST) ---------- */
+async function fetchNote(id){
+  const g=p=>fetch(DB+id+'/'+p+'.json').then(r=>{if(!r.ok)throw r.status;return r.json()});
+  const [o,l,t]=await Promise.all([g('o'),g('l'),g('t')]);
+  return {o,l,t};
+}
+async function put(id,text,lang){
+  const k=await sha(`key:${id}:${S.pw}`); // khoá sửa, suy ra từ mật khẩu
+  const r=await fetch(DB+id+'.json',{method:'PUT',body:JSON.stringify({k,o:text,l:lang,t:Date.now()})});
+  if(!r.ok)throw r.status;
+}
+const fail=e=>toast(e===401||e===403?'Firebase từ chối ghi. Note đã lưu chỉ sửa/xoá được sau khi dán rules mới.':'Không lưu được, thử lại sau.');
+async function save(){
+  const text=ed.value;
+  if(text.length>MAX)return toast(`Tối đa ${MAX} ký tự`);
+  const id=S.id||rid();
+  try{
+    await put(id,text,S.lang);
+    Object.assign(S,{id,text,miss:false,err:false});toast('Đã lưu');
+    if(location.hash!=='#/note/'+id)location.hash='/note/'+id;else draw();
+  }catch(e){fail(e)}
+}
+async function del(){
+  if(!S.id||!confirm('Xoá nội dung note này?'))return;
+  try{await put(S.id,'',S.lang);S.text='';ed.value='';toast('Đã xoá');draw()}catch(e){fail(e)}
+}
+
+/* ---------- định tuyến: #/note|share|raw/mã hoặc đường dẫn /note/mã ---------- */
+async function go(){
+  const m=location.hash.slice(1).match(/^\/?(note|share|raw)\/([a-z0-9]{4,16})$/i)||location.pathname.match(/\/(note|share|raw)\/([a-z0-9]{4,16})\/?$/i);
+  if(!m){Object.assign(S,{v:'note',id:null,text:'',lang:'text',miss:false,err:false,loading:false});ed.value='';return draw()}
+  const id=m[2].toLowerCase();S.v=m[1].toLowerCase();
+  if(S.id!==id){
+    Object.assign(S,{id,loading:true,err:false});draw();
+    try{const n=await fetchNote(id);if(S.id!==id)return;Object.assign(S,{text:n.o??'',lang:n.l||'text',miss:n.o==null})}
+    catch(e){if(S.id!==id)return;Object.assign(S,{text:'',miss:true,err:true})}
+    S.loading=false;ed.value=S.text;
+  }
+  draw();
+}
+
+/* ---------- vẽ giao diện ---------- */
+function upd(){
+  const t=ed.hidden?S.text:ed.value,w=t.trim();
+  $('#cnt').textContent=w?w.split(/\s+/).length:0;
+  const c=$('#lim');c.textContent=`${t.length}/${MAX} ký tự`;c.classList.toggle('over',t.length>MAX);
+}
+function draw(){
+  const {v,id,text}=S,un=!!S.pw,note=v==='note',edit=note&&un&&!S.loading;
+  document.body.dataset.v=v;document.title=id?`note / ${id}`:'note';
+  document.querySelectorAll('.tabs a').forEach(a=>{const t=a.dataset.v;a.href=id?`#/${t}/${id}`:'#/';a.setAttribute('aria-selected',t===v)});
+  $('#bLock').textContent=un?'Khoá lại':'Mở khoá';
+  ed.hidden=!edit;tools.hidden=!edit;
+  view.hidden=edit||v==='raw';rawBox.hidden=v!=='raw';share.hidden=v!=='share';
+  if(!view.hidden){
+    view.innerHTML=S.loading?'<p class="empty">Đang tải…</p>':S.err?'<p class="empty">Không tải được note.</p>':text?fmt(text,S.lang):`<p class="empty">Chưa có nội dung.${note&&!un?' Bấm “Mở khoá” để viết.':''}</p>`;
+    view.querySelectorAll('.hljs').forEach(linkNodes);
+  }
+  raw.textContent=text;
+  if(v==='raw'){if(!vid.getAttribute('src'))vid.src=VIDEO;if(!RM)vid.play().catch(()=>{})}else vid.pause();
+  if(!share.hidden&&id){
+    const u=shareUrl(),e=encodeURIComponent(u);
+    $('#surl').textContent=u;
+    $('#sFb').href='https://www.facebook.com/sharer/sharer.php?u='+e;
+    $('#sX').href='https://twitter.com/share?text=note&url='+e;
+    $('#sRd').href='https://reddit.com/submit?url='+e+'&title=note';
+    $('#sRaw').href='#/raw/'+id;
+  }
+  tools.querySelectorAll('[data-lang]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.lang===S.lang));
+  $('#bDel').hidden=!id||S.miss;
+  upd();
+}
+
+/* ---------- sự kiện ---------- */
+function setTheme(t){document.documentElement.dataset.theme=t;$('#bTheme').textContent=t==='dark'?'Chế độ sáng':'Chế độ tối';ls.set('th',t)}
+setTheme(document.documentElement.dataset.theme);
+$('#bTheme').onclick=()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
+
+$('#bLock').onclick=()=>{
+  if(S.pw){S.pw=null;ss.set('pw','');draw();toast('Đã khoá');return}
+  $('#pw').value='';$('#perr').textContent='';dlg.showModal();$('#pw').focus();
+};
+$('#pCancel').onclick=()=>dlg.close();
+$('#fPw').addEventListener('submit',async e=>{
+  e.preventDefault();const p=$('#pw').value;
+  if(await sha('gate:'+p)===GATE){S.pw=p;ss.set('pw',p);dlg.close();toast('Đã mở khoá');draw()}
+  else $('#perr').textContent='Sai mật khẩu';
+});
+$('#bGo').onclick=()=>{
+  const id=(prompt('Nhập mã note (4–16 ký tự a–z, 0–9)')||'').trim().toLowerCase();
+  if(!id)return;if(!/^[a-z0-9]{4,16}$/.test(id))return toast('Mã không hợp lệ');
+  location.hash='/note/'+id;
+};
+document.querySelector('.tabs').addEventListener('click',e=>{
+  if(e.target.closest('a')&&!S.id){e.preventDefault();toast('Lưu note trước khi chia sẻ')}
+});
+ed.addEventListener('input',()=>{S.text=ed.value;upd()});
+tools.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{S.lang=b.dataset.lang;draw()});
+$('#bSave').onclick=save;$('#bDel').onclick=del;
+$('#surl').onclick=()=>{copy(shareUrl());if(!RM)vid.play().catch(()=>{})};
+$('#bCopyRaw').onclick=()=>copy(S.text);
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'&&!ed.hidden){e.preventDefault();save()}});
+document.addEventListener('pointerdown',()=>{if(S.v==='raw'&&vid.paused)vid.play().catch(()=>{})}); // iOS chặn autoplay: chạm là chạy
+addEventListener('hashchange',go);
+go();
+})();
+</script>
+</body>
+</html>
