@@ -1,0 +1,124 @@
+/* Note — iOS 26 liquid glass. Tokens: nền xanh-băng, kính mờ, accent iOS blue #0a7cff */
+:root{
+  color-scheme:light;
+  --bg:#e6ecf6;--g1:rgba(10,124,255,.30);--g2:rgba(255,120,200,.22);--g3:rgba(60,220,190,.24);
+  --ink:#0e1526;--mut:#586178;--acc:#0a7cff;
+  --glass:rgba(255,255,255,.52);--glass2:rgba(255,255,255,.34);--sheen:rgba(255,255,255,.34);--seg:rgba(255,255,255,.78);
+  --edge:rgba(255,255,255,.78);--edge2:rgba(20,30,60,.08);
+  --sh:inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(110,130,175,.16),0 12px 40px rgba(40,60,110,.16);
+  --link:#0a62d9;--linkbg:rgba(10,124,255,.12);--codebg:rgba(15,23,42,.05);
+  --t1:#c2255c;--t2:#0b7a5f;--t3:#b45309;--t4:#6b7a90;--t5:#5b3fd1;--t6:#0a62d9;
+  --r:26px;--font:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+[data-theme=dark]{
+  color-scheme:dark;
+  --bg:#070b16;--g1:rgba(40,110,255,.30);--g2:rgba(170,70,220,.22);--g3:rgba(20,160,150,.20);
+  --ink:#eaf0ff;--mut:#98a3bd;--acc:#3d95ff;
+  --glass:rgba(34,42,64,.52);--glass2:rgba(60,72,104,.32);--sheen:rgba(255,255,255,.09);--seg:rgba(255,255,255,.16);
+  --edge:rgba(255,255,255,.2);--edge2:rgba(255,255,255,.08);
+  --sh:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.4),0 14px 44px rgba(0,0,0,.5);
+  --link:#6db3ff;--linkbg:rgba(61,149,255,.18);--codebg:rgba(0,0,0,.32);
+  --t1:#ff7ab0;--t2:#4fd8b0;--t3:#ffb86b;--t4:#7f8aa6;--t5:#b39dff;--t6:#6db3ff;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;min-height:100dvh;font:400 16px/1.6 var(--font);color:var(--ink);
+  background:radial-gradient(60vmax 50vmax at 10% 6%,var(--g1),transparent 60%),
+    radial-gradient(50vmax 45vmax at 92% 18%,var(--g2),transparent 60%),
+    radial-gradient(60vmax 50vmax at 50% 108%,var(--g3),transparent 60%),var(--bg);
+  background-attachment:fixed;transition:background-color .3s,color .3s;
+}
+.wrap{max-width:880px;margin:0 auto;padding:max(14px,env(safe-area-inset-top)) 14px max(20px,env(safe-area-inset-bottom));display:grid;gap:12px;align-content:start}
+
+/* Kính lỏng: blur + saturate + viền sáng phía trên + vệt phản chiếu chéo */
+.glass{
+  background:linear-gradient(135deg,var(--sheen),transparent 42%),var(--glass);
+  -webkit-backdrop-filter:blur(26px) saturate(190%);backdrop-filter:blur(26px) saturate(190%);
+  border:1px solid var(--edge);box-shadow:var(--sh);border-radius:var(--r);
+}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 12px 10px 18px}
+.logo{font-weight:700;font-size:20px;letter-spacing:-.02em;color:var(--ink);text-decoration:none;margin-right:auto}
+.logo span{color:var(--acc)}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.btn{
+  font:500 14px/1 var(--font);padding:11px 15px;border-radius:999px;border:1px solid var(--edge);
+  background:var(--glass2);color:var(--ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);transition:transform .15s,background .2s;
+}
+.btn:hover{background:var(--glass)}
+.btn:active{transform:scale(.95)}
+.btn.pri{background:var(--acc);color:#fff;border-color:transparent;box-shadow:0 6px 18px rgba(10,124,255,.35)}
+.btn.warn{color:#e5384f}
+.btn[aria-pressed=true]{background:var(--seg)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+.tabs{display:inline-flex;gap:2px;padding:4px;border-radius:999px;justify-self:start}
+.tabs a{padding:9px 20px;border-radius:999px;color:var(--mut);text-decoration:none;font-weight:500;font-size:14px;transition:background .2s,color .2s}
+.tabs a[aria-selected=true]{background:var(--seg);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+
+.card{min-height:54dvh;overflow:hidden}
+.card:focus-within{border-color:var(--acc)}
+#ed{
+  display:block;width:100%;min-height:54dvh;padding:22px;border:0;outline:0;resize:vertical;
+  background:transparent;color:var(--ink);font:400 16px/1.7 var(--font);tab-size:2;
+}
+#ed::placeholder{color:var(--mut)}
+.view,.rawbox pre{padding:22px;margin:0;white-space:pre-wrap;word-break:break-word}
+.view{line-height:1.75}
+.view a{color:var(--link);background:var(--linkbg);padding:1px 7px;border-radius:8px;text-decoration:none;font-weight:500;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.view a:hover{text-decoration:underline}
+.empty{color:var(--mut);margin:0}
+pre.code{white-space:pre;overflow-x:auto;margin:10px 0;padding:14px 16px;border-radius:16px;background:var(--codebg);border:1px solid var(--edge2);font:400 13.5px/1.65 var(--mono)}
+pre.code code{font:inherit}
+.hljs-keyword,.hljs-selector-tag,.hljs-literal,.hljs-doctag{color:var(--t1)}
+.hljs-string,.hljs-regexp,.hljs-addition{color:var(--t2)}
+.hljs-number,.hljs-symbol,.hljs-bullet,.hljs-variable,.hljs-template-variable{color:var(--t3)}
+.hljs-comment,.hljs-quote,.hljs-deletion{color:var(--t4);font-style:italic}
+.hljs-title,.hljs-section,.hljs-selector-id,.hljs-selector-class{color:var(--t5)}
+.hljs-built_in,.hljs-type,.hljs-class .hljs-title,.hljs-attr,.hljs-attribute,.hljs-name,.hljs-tag,.hljs-meta,.hljs-params{color:var(--t6)}
+.hljs-emphasis{font-style:italic}.hljs-strong{font-weight:700}
+
+.tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;border-radius:22px}
+.tools .grow{margin-left:auto}
+.meta{display:flex;gap:14px;color:var(--mut);font-size:13px;padding:0 6px}
+.meta b{color:var(--ink);font-weight:600}
+.over{color:#e5384f;font-weight:600}
+
+.share{display:grid;gap:10px;padding:14px;border-radius:22px}
+.share h2{margin:0;font-size:14px;font-weight:600;color:var(--mut)}
+.surl{
+  width:100%;text-align:left;cursor:pointer;color:var(--ink);padding:14px 16px;border-radius:18px;
+  border:1px dashed var(--edge);background:var(--glass2);font:500 13.5px/1.5 var(--mono);word-break:break-all;transition:transform .15s,background .2s;
+}
+.surl:hover{background:var(--glass)}.surl:active{transform:scale(.985)}
+.soc{display:flex;flex-wrap:wrap;gap:8px}
+
+/* Raw: video nền toàn màn hình */
+.bgv{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:0;transition:opacity .5s;pointer-events:none}
+body[data-v=raw] .bgv{opacity:1}
+body[data-v=raw]::before{content:"";position:fixed;inset:0;z-index:-1;background:rgba(6,10,20,.38)}
+.rawbox pre{font:400 14px/1.65 var(--mono)}
+.rawbox{position:relative}
+.rawbox .btn{position:absolute;top:12px;right:12px}
+
+dialog.sheet{width:min(92vw,360px);padding:24px;color:var(--ink);margin:auto}
+dialog.sheet::backdrop{background:rgba(10,14,26,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.sheet h3{margin:0 0 4px;font-size:18px}
+.sheet p{margin:0 0 14px;color:var(--mut);font-size:14px}
+.sheet input{width:100%;padding:13px 16px;border-radius:16px;border:1px solid var(--edge);background:var(--glass2);color:var(--ink);font:500 16px var(--font)}
+.sheet .row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.perr{min-height:20px;margin-top:8px;font-size:13px;color:#e5384f}
+
+.toast{
+  position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translate(-50%,24px);opacity:0;pointer-events:none;
+  padding:12px 18px;border-radius:999px;font-size:14px;font-weight:500;max-width:90vw;text-align:center;transition:.3s;z-index:9;
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:560px){
+  .bar{padding-left:14px}.acts{width:100%}.btn{flex:1 1 auto;justify-content:center;padding:11px 10px}
+  #ed,.view,.rawbox pre{padding:18px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
