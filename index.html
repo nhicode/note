@@ -14,6 +14,7 @@
 </head>
 <body data-v="note">
 <video id="bgv" class="bgv" muted loop playsinline preload="none" aria-hidden="true"></video>
+<button id="enter" class="enter" type="button" hidden><span class="glass">Chạm để vào<small>Video và nhạc sẽ phát</small></span></button>
 
 <div class="wrap">
   <header class="bar glass">
@@ -86,6 +87,7 @@ const $=s=>document.querySelector(s);
 const mk=st=>({get:k=>{try{return st.getItem(k)}catch(e){return null}},set:(k,v)=>{try{st.setItem(k,v)}catch(e){}}});
 const ls=mk(localStorage),ss=mk(sessionStorage);
 const ed=$('#ed'),view=$('#view'),raw=$('#raw'),rawBox=$('#rawBox'),share=$('#share'),tools=$('#tools'),vid=$('#bgv'),dlg=$('#dlg');
+let entered=false; // đã chạm "vào" trong tab này → được bật tiếng
 const S={v:'note',id:null,text:'',lang:'text',miss:false,err:false,loading:false,pw:ss.get('pw')||null};
 
 /* ---------- tiện ích ---------- */
