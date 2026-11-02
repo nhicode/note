@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070b16">
+<title>note</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --ink:#f4f7ff;--link:#c4e0ff;--chip:rgba(8,16,36,.42);
+  --font:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;min-height:100dvh;color:var(--ink);font:400 16px/1.6 var(--font);
+  background:radial-gradient(60vmax 50vmax at 10% 6%,rgba(40,110,255,.30),transparent 60%),
+    radial-gradient(50vmax 45vmax at 92% 18%,rgba(170,70,220,.22),transparent 60%),#070b16;
+  background-attachment:fixed;
+}
+
+/* Video nền: hiện dần khi đã phát được, tránh nháy đen */
+.bgv{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:0;transition:opacity .6s;pointer-events:none}
+.bgv.on{opacity:1}
+/* Chỉ làm tối nhẹ phần trên (nơi có chữ), phần còn lại để video rõ */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(to bottom,rgba(4,8,18,.45),rgba(4,8,18,.06) 60%)}
+
+.wrap{max-width:880px;margin:0 auto;padding:max(14px,env(safe-area-inset-top)) 14px max(20px,env(safe-area-inset-bottom))}
+
+/* Kính trong: nền gần như không màu, blur nhẹ, vẫn thấy rõ video phía sau */
+.card{
+  border-radius:26px;border:1px solid rgba(255,255,255,.24);
+  background:linear-gradient(135deg,rgba(255,255,255,.16),transparent 45%),rgba(255,255,255,.045);
+  -webkit-backdrop-filter:blur(8px) saturate(160%);backdrop-filter:blur(8px) saturate(160%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 36px rgba(0,0,0,.22);
+}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card{background:rgba(12,18,34,.55)}}
+
+#raw{margin:0;padding:22px;white-space:pre-wrap;word-break:break-word;font:400 14px/1.9 var(--mono);text-shadow:0 1px 8px rgba(0,0,0,.6)}
+#raw a{
+  color:var(--link);background:var(--chip);padding:4px 9px;border-radius:9px;text-decoration:none;font-weight:500;text-shadow:none;
+  -webkit-box-decoration-break:clone;box-decoration-break:clone;
+}
+#raw a:hover,#raw a:focus-visible{text-decoration:underline}
+:focus-visible{outline:2px solid #3d95ff;outline-offset:2px}
+
+/* Cổng "Chạm để vào": chỉ hiện khi trình duyệt chặn tự phát tiếng (iOS) */
+.enter{position:fixed;inset:0;z-index:20;display:grid;place-items:center;border:0;padding:24px;background:rgba(6,10,20,.22);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);cursor:pointer;font:inherit;color:var(--ink)}
+.enter .pill{
+  display:grid;gap:6px;justify-items:center;padding:26px 42px;border-radius:32px;font:600 20px/1.3 var(--font);
+  border:1px solid rgba(255,255,255,.28);background:linear-gradient(135deg,rgba(255,255,255,.16),transparent 45%),rgba(255,255,255,.06);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 36px rgba(0,0,0,.25);
+}
+.enter small{font:400 13px/1.4 var(--font);color:rgba(244,247,255,.75)}
+
+@media (max-width:560px){#raw{padding:18px}}
+@media (prefers-reduced-motion:reduce){.bgv{transition:none}}
+</style>
+</head>
+<body>
+<video id="bgv" class="bgv" muted loop playsinline preload="none" aria-hidden="true"></video>
+<button id="enter" class="enter" type="button" hidden><span class="pill">Chạm để vào<small>Video và nhạc sẽ phát</small></span></button>
+
+<main class="wrap">
+  <section class="card" aria-label="Nội dung note" aria-live="polite">
+    <pre id="raw">Đang tải…</pre>
+  </section>
+</main>
+
+<script>
+(()=>{
+const DB='https://dichai-c1645-default-rtdb.firebaseio.com/tr/',
+  VIDEO='https://github.com/nhicode/note/raw/refs/heads/main/ScreenRecording_11-02-2026_21-46-01_1.mp4',
+  MUSIC=''; // Dán link nhạc (.mp3) vào đây. Để trống = dùng luôn tiếng của video.
+const $=s=>document.querySelector(s);
+const vid=$('#bgv'),raw=$('#raw'),gate=$('#enter');
+const aud=MUSIC?Object.assign(new Audio(MUSIC),{loop:true,preload:'auto'}):null;
+
+/* ---------- link bấm được (chỉ http/https, không có javascript:) ---------- */
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const URLRE=/\bhttps?:\/\/[^\s<>"')\]]+|\bwww\.[^\s<>"')\]]+/gi;
+function linkify(t){
+  let o='',i=0;
+  for(const m of t.matchAll(URLRE)){
+    const u=m[0],h=u.replace(/[.,;:!?]+$/,''),tail=u.slice(h.length),href=/^www\./i.test(h)?'https://'+h:h;
+    o+=esc(t.slice(i,m.index))+`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(h)}</a>`+esc(tail);
+    i=m.index+u.length;
+  }
+  return o+esc(t.slice(i));
+}
+
+/* ---------- đọc note: #mã, #/raw/mã (nhận cả #/note/mã, #/share/mã) ---------- */
+const getId=()=>{const m=location.hash.match(/^#\/?(?:(?:note|share|raw)\/)?([a-z0-9]{4,16})\/?$/i);return m&&m[1].toLowerCase()};
+async function load(){
+  const id=getId();
+  document.title=id?`note / ${id}`:'note';
+  if(!id){raw.textContent='Thiếu mã note trong đường dẫn.';return}
+  raw.textContent='Đang tải…';
+  try{
+    const r=await fetch(DB+id+'/o.json'); // chỉ lấy nội dung, không kéo cả khoá sửa
+    if(!r.ok)throw r.status;
+    const t=await r.json();
+    if(id!==getId())return; // đã đổi sang note khác trong lúc chờ
+    raw.innerHTML=t?linkify(t):'Chưa có nội dung.';
+  }catch(e){if(id===getId())raw.textContent='Không tải được note. Kiểm tra mạng rồi tải lại trang.'}
+}
+
+/* ---------- video + nhạc: tự phát; nếu bị chặn thì hiện cổng chạm ---------- */
+// Có MUSIC: video câm, nhạc phát riêng. Không có: dùng tiếng của video.
+const play=()=>{vid.muted=!!aud;return Promise.all([vid.play(),aud&&aud.play()])};
+async function start(){
+  vid.preload='auto';vid.src=VIDEO;
+  try{await play()}
+  catch(e){
+    vid.muted=true;vid.play().catch(()=>{}); // video vẫn chạy câm phía sau cổng
+    if(e&&e.name==='NotAllowedError')gate.hidden=false;
+  }
+}
+gate.onclick=()=>{gate.hidden=true;play().catch(()=>{})}; // phát ngay trong cú chạm (iOS yêu cầu)
+vid.addEventListener('playing',()=>vid.classList.add('on'),{once:true});
+
+// iOS hay tự dừng video: chạm hoặc quay lại tab là chạy tiếp; ẩn tab thì dừng để đỡ pin
+const resume=()=>{vid.play().catch(()=>{});if(gate.hidden&&aud)aud.play().catch(()=>{})};
+addEventListener('pointerdown',resume);
+document.addEventListener('visibilitychange',()=>{if(document.hidden){vid.pause();if(aud)aud.pause()}else resume()});
+addEventListener('hashchange',load);
+
+load();start();
+})();
+</script>
+</body>
+</html>
