@@ -10,22 +10,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<style>
-/* Cổng "Chạm để vào" (trang raw) */
-.enter{position:fixed;inset:0;z-index:20;display:grid;place-items:center;border:0;padding:24px;background:rgba(6,10,20,.5);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);cursor:pointer;font:inherit}
-.enter .glass{display:grid;gap:6px;justify-items:center;padding:28px 44px;border-radius:32px;color:var(--ink);font:600 20px/1.3 var(--font)}
-.enter small{font:400 13px/1.4 var(--font);color:var(--mut)}
-/* Raw: link bấm được */
-.rawbox pre{padding-top:64px;line-height:1.9}
-.rawbox a{color:var(--link);background:var(--linkbg);padding:4px 9px;border-radius:9px;text-decoration:none;font-weight:500;cursor:pointer;-webkit-box-decoration-break:clone;box-decoration-break:clone}
-.rawbox a:hover,.rawbox a:focus-visible{text-decoration:underline}
-</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
-<body data-v="note">
-<video id="bgv" class="bgv" muted loop playsinline preload="none" aria-hidden="true"></video>
-<button id="enter" class="enter" type="button" hidden><span class="glass">Chạm để vào<small>Video và nhạc sẽ phát</small></span></button>
-
+<body>
 <div class="wrap">
   <header class="bar glass">
     <a class="logo" href="#/">note<span>.</span></a>
@@ -40,16 +27,11 @@
   <div class="tabs glass" role="tablist" aria-label="Chế độ xem">
     <a data-v="note" role="tab">Gốc</a>
     <a data-v="share" role="tab">Chia sẻ</a>
-    <a data-v="raw" role="tab">Raw</a>
   </div>
 
   <main class="card glass">
     <textarea id="ed" placeholder="Viết ghi chú, dán link hoặc code vào đây…" spellcheck="false" aria-label="Nội dung note" hidden></textarea>
     <div id="view" class="view" hidden></div>
-    <div id="rawBox" class="rawbox" hidden>
-      <button class="btn" id="bSnd" type="button">Tắt tiếng</button>
-      <pre id="raw"></pre>
-    </div>
   </main>
 
   <section id="share" class="share glass" hidden>
@@ -90,15 +72,11 @@
 <script>
 (()=>{
 const DB='https://dichai-c1645-default-rtdb.firebaseio.com/tr/',MAX=1200,
-  GATE='adfadf17e272270734963caf643918627185e0baf85d66915032566d52932921', // sha256("gate:"+mật khẩu)
-  VIDEO='https://github.com/nhicode/note/raw/refs/heads/main/ScreenRecording_11-02-2026_21-46-01_1.mp4',
-  MUSIC=''; // Dán link nhạc (.mp3) vào đây. Để trống = dùng luôn tiếng của video.
+  GATE='adfadf17e272270734963caf643918627185e0baf85d66915032566d52932921'; // sha256("gate:"+mật khẩu)
 const $=s=>document.querySelector(s);
 const mk=st=>({get:k=>{try{return st.getItem(k)}catch(e){return null}},set:(k,v)=>{try{st.setItem(k,v)}catch(e){}}});
 const ls=mk(localStorage),ss=mk(sessionStorage);
-const ed=$('#ed'),view=$('#view'),raw=$('#raw'),rawBox=$('#rawBox'),share=$('#share'),tools=$('#tools'),vid=$('#bgv'),dlg=$('#dlg'),gate=$('#enter'),snd=$('#bSnd');
-let entered=false,muted=false; // entered: đã chạm "vào" trong tab này → được phát tiếng
-const aud=MUSIC?Object.assign(new Audio(),{loop:true,preload:'auto'}):null;
+const ed=$('#ed'),view=$('#view'),share=$('#share'),tools=$('#tools'),dlg=$('#dlg');
 const S={v:'note',id:null,text:'',lang:'text',miss:false,err:false,loading:false,pw:ss.get('pw')||null};
 
 /* ---------- tiện ích ---------- */
@@ -107,7 +85,9 @@ const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&qu
 const rid=()=>[...crypto.getRandomValues(new Uint8Array(8))].map(b=>'abcdefghijklmnopqrstuvwxyz0123456789'[b%36]).join('');
 let tt;const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2600)};
 const copy=async s=>{try{await navigator.clipboard.writeText(s);toast('Đã chép')}catch(e){toast('Trình duyệt chặn chép, hãy chép tay')}};
-const shareUrl=()=>location.href.split('#')[0]+'#/raw/'+S.id; // link chia sẻ = trang raw (video + nhạc)
+// Trang raw nằm riêng ở app.html (cùng thư mục với trang này): app.html#mã
+const appUrl=id=>new URL('app.html',location.href).href+'#'+id;
+const shareUrl=()=>appUrl(S.id);
 
 /* ---------- tự nhận diện link + code ---------- */
 const URLRE=/\bhttps?:\/\/[^\s<>"')\]]+|\bwww\.[^\s<>"')\]]+/gi; // chỉ http(s): không có javascript:
@@ -140,21 +120,6 @@ function fmt(t,lang){
   return o+linkify(t.slice(i));
 }
 
-/* ---------- video nền + nhạc (chỉ ở trang raw, sau khi chạm "vào") ---------- */
-function applyMute(){vid.muted=muted||!!aud;if(aud)aud.muted=muted;snd.textContent=muted?'Bật tiếng':'Tắt tiếng'}
-function playMedia(){
-  applyMute();
-  vid.play().catch(()=>{});
-  if(aud)aud.play().catch(()=>{});
-}
-function media(){
-  const on=S.v==='raw';
-  if(on&&!vid.getAttribute('src')){vid.preload='auto';vid.src=VIDEO} // tải sẵn video khi cổng đang hiện
-  if(on&&aud&&!aud.src)aud.src=MUSIC;
-  gate.hidden=!on||entered;
-  if(on&&entered)playMedia();else{vid.pause();if(aud)aud.pause()}
-}
-
 /* ---------- Firebase (REST) ---------- */
 async function fetchNote(id){
   const g=p=>fetch(DB+id+'/'+p+'.json').then(r=>{if(!r.ok)throw r.status;return r.json()});
@@ -182,11 +147,13 @@ async function del(){
   try{await put(S.id,'',S.lang);S.text='';ed.value='';toast('Đã xoá');draw()}catch(e){fail(e)}
 }
 
-/* ---------- định tuyến: #/note|share|raw/mã hoặc đường dẫn /note/mã ---------- */
+/* ---------- định tuyến: #/note|share/mã hoặc đường dẫn /note/mã ---------- */
 async function go(){
   const m=location.hash.slice(1).match(/^\/?(note|share|raw)\/([a-z0-9]{4,16})$/i)||location.pathname.match(/\/(note|share|raw)\/([a-z0-9]{4,16})\/?$/i);
   if(!m){Object.assign(S,{v:'note',id:null,text:'',lang:'text',miss:false,err:false,loading:false});ed.value='';return draw()}
-  const id=m[2].toLowerCase();S.v=m[1].toLowerCase();
+  const id=m[2].toLowerCase(),v=m[1].toLowerCase();
+  if(v==='raw'){location.replace(appUrl(id));return} // link raw cũ → chuyển sang trang riêng
+  S.v=v;
   if(S.id!==id){
     Object.assign(S,{id,loading:true,err:false});draw();
     try{const n=await fetchNote(id);if(S.id!==id)return;Object.assign(S,{text:n.o??'',lang:n.l||'text',miss:n.o==null})}
@@ -204,18 +171,15 @@ function upd(){
 }
 function draw(){
   const {v,id,text}=S,un=!!S.pw,note=v==='note',edit=note&&un&&!S.loading;
-  document.body.dataset.v=v;document.title=id?`note / ${id}`:'note';
+  document.title=id?`note / ${id}`:'note';
   document.querySelectorAll('.tabs a').forEach(a=>{const t=a.dataset.v;a.href=id?`#/${t}/${id}`:'#/';a.setAttribute('aria-selected',t===v)});
   $('#bLock').textContent=un?'Khoá lại':'Mở khoá';
   ed.hidden=!edit;tools.hidden=!edit;
-  view.hidden=edit||v==='raw';rawBox.hidden=v!=='raw';share.hidden=v!=='share';
+  view.hidden=edit;share.hidden=v!=='share';
   if(!view.hidden){
     view.innerHTML=S.loading?'<p class="empty">Đang tải…</p>':S.err?'<p class="empty">Không tải được note.</p>':text?fmt(text,S.lang):`<p class="empty">Chưa có nội dung.${note&&!un?' Bấm “Mở khoá” để viết.':''}</p>`;
     view.querySelectorAll('.hljs').forEach(linkNodes);
   }
-  // Raw: mọi đường dẫn http(s) đều là link bấm được, mở ở tab mới
-  raw.innerHTML=S.loading?'Đang tải…':S.err?'Không tải được note.':text?linkify(text):'Chưa có nội dung.';
-  media();
   if(!share.hidden&&id){
     const u=shareUrl(),e=encodeURIComponent(u);
     $('#surl').textContent=u;
@@ -255,13 +219,9 @@ document.querySelector('.tabs').addEventListener('click',e=>{
 ed.addEventListener('input',()=>{S.text=ed.value;upd()});
 tools.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{S.lang=b.dataset.lang;draw()});
 $('#bSave').onclick=save;$('#bDel').onclick=del;
-// Chia sẻ: chép link rồi mở trang raw ở tab mới riêng
+// Chia sẻ: chép link rồi mở app.html (chỉ có raw) ở tab mới
 $('#surl').onclick=()=>{const u=shareUrl();copy(u);window.open(u,'_blank','noopener')};
-// Chạm "vào" → bật video + nhạc (iOS chỉ cho phát tiếng sau một cú chạm)
-gate.onclick=()=>{entered=true;media()};
-snd.onclick=()=>{muted=!muted;applyMute()};
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'&&!ed.hidden){e.preventDefault();save()}});
-document.addEventListener('pointerdown',()=>{if(S.v==='raw'&&entered&&vid.paused)playMedia()}); // iOS tự dừng video: chạm là chạy lại
 addEventListener('hashchange',go);
 go();
 })();
