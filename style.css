@@ -31,17 +31,36 @@ body{
   background-attachment:fixed;transition:background-color .3s,color .3s;
 }
 
-/* Video nền: chặn chuột/nhấn giữ tải xuống */
+/* KHÓA CỨNG VIDEO NỀN: Chặn nhấn giữ cảm ứng từ A-Z cho tất cả thiết bị */
 .bgv{
-  position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;opacity:0;transition:opacity .6s;
-  pointer-events:none;
-  -webkit-touch-callout:none;
-  -webkit-user-select:none;
-  user-select:none;
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  z-index:-2;
+  opacity:0;
+  transition:opacity .6s;
+  
+  /* Vô hiệu hóa mọi loại sự kiện chuột và chạm từ CSS */
+  pointer-events:none !important;
+  
+  /* Chặn menu ngữ cảnh và menu tải xuống trên iOS Safari */
+  -webkit-touch-callout: none !important;
+  
+  /* Chặn bôi đen, chọn văn bản/phần tử trên mọi hệ điều hành */
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  
+  /* Loại bỏ hoàn toàn hiệu ứng bóng mờ (tap highlight) khi chạm trên Android/iOS */
+  -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 .bgv.on{opacity:1}
 
-/* Ẩn nút download của trình điều khiển mặc định trên các trình duyệt */
+/* Triệt tiêu giao diện điều khiển mặc định để không lộ nút bấm */
 video::-internal-media-controls-download-button { display: none !important; }
 video::-webkit-media-controls-enclosure { overflow: hidden !important; }
 video::-webkit-media-controls-panel { width: calc(100% + 35px) !important; }
